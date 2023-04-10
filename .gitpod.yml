@@ -6,6 +6,3 @@
 
 tasks:
   - init: pip install -r requirements.txt
-  - command: python naru_demo.py
-
-
