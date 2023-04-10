@@ -550,4 +550,4 @@ print("Mean q-error: {:.4f}".format(sumqError/num_cols))
 # ]
 # test_func(R)
 
-print('finish')
+print('Finish!')

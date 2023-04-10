@@ -1,3 +1,8 @@
+# model files
+model
+# mid csv data file
+*_pretreatment.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
