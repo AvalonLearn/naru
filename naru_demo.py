@@ -1,3 +1,10 @@
+import argparse
+ap=argparse.ArgumentParser()
+ap.add_argument("-d","--detial",action='store_true',help="展示详细输出，输出到output.txt文件中")
+args=vars(ap.parse_args())
+
+showdetials=args['detial']
+
 import torch
 import torch.nn as nn
 
@@ -53,7 +60,8 @@ headdata=pd.read_csv(csvpath,nrows=headrows)
 num_cols=headdata.shape[1]
 chunksize=(int)(blocksize/(unitsize*num_cols))
 # copyfile(csvpath,pretreatmentpath)
-print(headdata)
+if(showdetials):
+    print(headdata)
 # data = pd.read_csv(csvpath)
 # 预处理数据，将数据转换为全整数+浮点数类型
 
@@ -215,6 +223,14 @@ device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:",device)
 # 需要将模型、数据都移动到GPU上
 
+if(showdetials):
+    print('Running......')
+    import sys
+    # 打开文件
+    f = open('output.txt', 'w')
+    # 重定向标准输出流
+    sys.stdout = f
+
 sizes=[]
 # import torch.optim.lr_scheduler as lr_scheduler
 def trainingmodel(headdata,strclass,str_model):
@@ -288,7 +304,7 @@ def trainingmodel(headdata,strclass,str_model):
                 # # 计算验证集损失并调整学习率
                 # val_loss = nn.functional.mse_loss(outputs, target_p)
                 # scheduler.step(val_loss)
-            if((epoch+1)%(total_epoch/10)==0):
+            if((epoch+1)%(total_epoch/5)==0):
                 print('Net {} Epoch [{}/{}], Loss:{:.4f}'.format(i,epoch+1,total_epoch,loss.item()))
             # 输出损失函数值，函数值下降说明模型在学习如何拟合数据
         # 保存训练好的网络模型
@@ -307,7 +323,8 @@ for i in range(num_cols):
     nets.append(net)
 
 def auto_regress_model(v,i):
-    if(i==1):
+    # i代表第i+1个属性
+    if(i==0):
         unique=np.unique(pd.read_csv(pretreatmentpath,usecols=[i]).values)
         return [1/len(unique)]*len(unique)
     # 构造输入的向量，得到输出的结果
@@ -347,7 +364,7 @@ def renormalize(pv,R,i):
     return p/sum(pv)
 
 def sample(R,attr_idx,pv):
-    if(attr_idx!=1):
+    if(attr_idx!=0):
         pv=pv.cpu()
         pv=np.array(pv,dtype='double')
     pvsum=sum(pv)
@@ -422,7 +439,8 @@ def cardinality_estiamte(S,R):
     for j in range(S): # 采样S个采样点，并计算对应的联合概率
         p=1 # 计算查询语句的实际归一化基数估计值
         v=[0]*len(R)
-        for i in range(1,len(R)):
+        for i in range(0,len(R)):
+            # i 代表下标为i的属性
             # 将v输入自回归模型得到P(Vi|v1,v2,...,vi-1)
             pv=auto_regress_model(v,i)
             # 在取值范围内将pv重新归一化得到P(Vi|v1,...,vi-1,Vi∈Ri)
@@ -501,7 +519,8 @@ def real_num(R):
         else:
             sql=sql+attr+">="+str(r[0])+" & "+attr+"<="+str(r[1])
     try:
-        print("查询条件为："+sql)
+        if(showdetials):
+            print("查询条件为："+sql)
         res=df.query(sql)
         return len(res)
     except KeyError:
@@ -531,17 +550,35 @@ def test_func(R):
     #         print(attr+">="+str(r[0])+" & "+attr+"<="+str(r[1])+"")
     rn=real_num(R)
     pn=pre_num(R)
-    print("实际个数：",rn)
-    print("预测个数：",int(pn))
+    if(showdetials):
+        print("实际个数：",rn)
+        print("预测个数：",int(pn))
     qError=q_error(pn,rn)
-    print("Q-error：{:.4f}".format(q_error(pn,rn)))
+    if(showdetials):
+        print("Q-error：{:.4f}".format(q_error(pn,rn)))
     return qError
 
-sumqError=0
-for i in range(num_cols):
-    R=randomRi(i,10)
-    sumqError=sumqError+test_func(R)
-print("Mean q-error: {:.4f}".format(sumqError/num_cols))
+def test_q_error(seed):
+    sumqError=0
+    for i in range(num_cols):
+        R=randomRi(i,seed)
+        sumqError=sumqError+test_func(R)
+    mean=sumqError/num_cols
+    print("Mean q-error: {:.4f}".format(mean))
+    return mean
+
+all_mean=0
+for seed in range(11,21):
+    print("------Test round {}------".format(seed-10))
+    all_mean=all_mean+test_q_error(seed)
+print("All Mean Q-error：{:.4f}".format(all_mean/10))
+if(showdetials):
+    # 关闭文件
+    f.close()
+    # 恢复标准输出流
+    sys.stdout = sys.__stdout__
+
+    print("All Mean Q-error：{:.4f}".format(all_mean/10))
 
 # R=[
 #     [],[],[],[],

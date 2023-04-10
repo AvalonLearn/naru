@@ -2,6 +2,8 @@
 model
 # mid csv data file
 *_pretreatment.csv
+# output detial file
+output.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
